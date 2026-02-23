@@ -1,0 +1,24 @@
+# IDEs (PyCharm, VS Code, etc.)
+.idea
+.vscode
+.swp
+.iml
+
+# Python
+__pycache__
+.py[cod]
+$py.class
+venv
+env
+
+# Data & Environment
+.env
+dataraw_.csv
+dataprocessed_.csv
+
+# Notebooks
+.ipynb_checkpoints
+
+# OS generated files
+.DS_Store
+Thumbs.db
