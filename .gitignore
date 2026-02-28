@@ -1,5 +1,7 @@
 # IDEs (PyCharm, VS Code, etc.)
 .idea/
+src/.idea/
+*.env
 .vscode
 .swp
 .iml
