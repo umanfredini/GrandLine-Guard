@@ -1,70 +1,44 @@
-import praw
+import kagglehub
 import pandas as pd
 import os
-from dotenv import load_dotenv
-
-# Caricamento credenziali dal file .env (Sicurezza)
-load_dotenv()
 
 
-def get_reddit_instance():
-    """Inizializza l'istanza di Reddit con le tue future API."""
-    return praw.Reddit(
-        client_id=os.getenv("REDDIT_CLIENT_ID"),
-        client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-        user_agent="python:GrandLineGuard:v1.0 (by /u/YourUsername)"
-    )
+def final_extraction():
+    # 1. Configurazione Percorsi
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_dir = os.path.join(root_dir, "data")
+    output_file = os.path.join(data_dir, "raw_mal_reviews.csv")
 
+    # Puntiamo alla cache dove kagglehub ha scaricato i dati
+    dataset_slug = "marlesson/myanimelist-dataset-animes-profiles-reviews"
+    download_path = kagglehub.dataset_download(dataset_slug)
+    csv_path = os.path.join(download_path, "reviews.csv")
 
-def fetch_spoiler_data(limit_per_saga=100):
-    """Estrae dati da Reddit basandosi su keyword e flair."""
-    reddit = get_reddit_instance()
-    subreddit = reddit.subreddit("OnePiece")
+    print(f"🏴‍☠️ Estrazione in corso da: {csv_path}")
 
-    # Dizionario delle saghe (il nostro obiettivo di classificazione)
-    sagas = {
-        "0_EastBlue": ["arlong", "don krieg", "kuro", "buggy", "loguetown"],
-        "1_Alabasta": ["crocodile", "vivi", "baroque works", "nefertari"],
-        "2_Skypiea": ["ener", "enel", "upper yard", "shandora", "wyper"],
-        "3_Water7": ["franky", "galley-la", "iceburg", "cp9", "treno marino"],
-        "4_EniesLobby": ["gear 2", "gear 3", "sogeking", "lucci", "spandam"],
-        "5_Marineford": ["ace", "barbabianca", "whitebeard", "akainu", "marineford"],
-        "6_PostMarineford": ["timeskip", "hody", "caesar", "punk hazard"],
-        "7_Dressrosa": ["doflamingo", "gear 4", "fujitora", "corazon", "doflamingo"],
-        "8_Imperatori": ["big mom", "kaido", "katakuri", "gear 5", "nika", "wano"],
-        "9_SagaFinale": ["egghead", "vegapunk", "kizaru", "saturn", "astri"]
-    }
+    # 2. Caricamento e Filtraggio
+    # Usiamo 'anime_uid' (ID 21) e 'text' come confermato dalla diagnosi
+    df = pd.read_csv(csv_path)
 
-    collected_data = []
+    # Filtro One Piece
+    op_df = df[df['anime_uid'] == 21].copy()
 
-    print("🏴‍☠️ Inizio raccolta dati dalla Rotta Maggiore...")
+    # Pulizia Base e Ridenominazione
+    op_df = op_df[['text', 'score']].rename(columns={'text': 'review_text'})
+    # Rimuoviamo eventuali righe con testo vuoto
+    op_df = op_df.dropna(subset=['review_text'])
 
-    # Strategia: cerchiamo nei post con tag spoiler per massimizzare i risultati
-    for submission in subreddit.search("flair:'Manga Spoilers'", limit=200):
-        submission.comments.replace_more(limit=0)
-        for comment in submission.comments.list():
-            text = comment.body.lower()
+    # 3. Salvataggio Atomico
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
 
-            # Labeling automatico basato su keyword (da raffinare nel preprocessing)
-            for saga, keywords in sagas.items():
-                if any(kw in text for kw in keywords):
-                    collected_data.append({
-                        "raw_text": comment.body,
-                        "label": saga,
-                        "source_post": submission.title
-                    })
-                    break  # Passa al commento successivo una volta trovata la saga
+    op_df.to_csv(output_file, index=False, encoding='utf-8')
 
-    return pd.DataFrame(collected_data)
+    print(f"\n🏆 OPERAZIONE COMPLETATA CON SUCCESSO!")
+    print(f"📊 Recensioni One Piece estratte: {len(op_df)}")
+    print(f"📍 File pronto per il Machine Learning: {output_file}")
+    print("\n⚠️ PROSSIMO PROBLEMA: Il dataset non ha etichette 'is_spoiler'.")
 
 
 if __name__ == "__main__":
-    try:
-        df = fetch_spoiler_data()
-        # Salvataggio del dataset grezzo
-        df.to_csv("data/raw_spoiler_data.csv", index=False)
-        print(f"✅ Successo! Raccolti {len(df)} esempi.")
-        print("\nDistribuzione iniziale delle Saghe (Analisi dati sbilanciati):")
-        print(df['label'].value_counts())
-    except Exception as e:
-        print(f"❌ Errore (probabilmente mancano le API): {e}")
+    final_extraction()

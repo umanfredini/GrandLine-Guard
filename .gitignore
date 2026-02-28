@@ -1,5 +1,5 @@
 # IDEs (PyCharm, VS Code, etc.)
-.idea
+.idea/
 .vscode
 .swp
 .iml
